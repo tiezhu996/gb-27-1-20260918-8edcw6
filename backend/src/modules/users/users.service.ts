@@ -1,7 +1,10 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole, TeacherStatus } from '../../common/entities/user.entity';
+
+/** 允许用户自行修改的个人资料字段；角色与审核状态只能走管理员审核流程 */
+const SELF_UPDATABLE_FIELDS = ['name', 'avatar', 'phone'] as const;
 
 @Injectable()
 export class UsersService {
@@ -30,8 +33,25 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('用户不存在');
     }
-    
-    const updated = await this.userRepository.save({ ...user, ...updateData });
+
+    // 禁止通过个人资料接口自行提权或伪造教师审核结果
+    if (
+      (updateData.role !== undefined && updateData.role !== user.role) ||
+      (updateData.teacherStatus !== undefined &&
+        updateData.teacherStatus !== user.teacherStatus)
+    ) {
+      throw new BadRequestException('角色与教师审核状态不能自行修改');
+    }
+
+    const allowed: Partial<User> = {};
+    for (const key of SELF_UPDATABLE_FIELDS) {
+      if (updateData[key] !== undefined) {
+        allowed[key] = updateData[key] as any;
+      }
+    }
+
+    Object.assign(user, allowed);
+    const updated = await this.userRepository.save(user);
     const { password, ...userWithoutPassword } = updated;
     return userWithoutPassword;
   }

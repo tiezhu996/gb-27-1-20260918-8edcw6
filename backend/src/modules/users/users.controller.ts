@@ -1,13 +1,14 @@
 import { Controller, Get, Put, Param, Body, UseGuards, Request, Query, Post } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { UserRole } from '../../common/entities/user.entity';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Get()
   findAll(@Query('role') role?: UserRole) {
     return this.usersService.findAll(role);
@@ -37,7 +38,7 @@ export class UsersController {
     return this.usersService.submitTeacherCertification(req.user.id, body.certification);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Post(':id/review-teacher')
   reviewTeacher(
     @Param('id') id: string,

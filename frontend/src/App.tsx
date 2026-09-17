@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Layout } from 'antd';
+import { Layout, Result, Button } from 'antd';
 import { useEffect, useState } from 'react';
 import MainLayout from './components/Layout';
 import Login from './pages/Login';
@@ -9,17 +9,49 @@ import CourseList from './pages/CourseList';
 import CourseDetail from './pages/CourseDetail';
 import MyCourses from './pages/MyCourses';
 import CreateCourse from './pages/CreateCourse';
+import EditCourse from './pages/EditCourse';
 import LiveClass from './pages/LiveClass';
 import Assignment from './pages/Assignment';
 import Statistics from './pages/Statistics';
 import { useAuthStore } from './store/auth';
 import { authApi } from './api/auth';
+import { UserRole, TeacherStatus } from './types/user';
 
 const { Content } = Layout;
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+/**
+ * 创建/编辑课程入口守卫：仅审核通过的教师可以进入。
+ * 未通过审核的教师即使手动输入 URL 也看不到创建表单（接口侧同样会拒绝）。
+ */
+function TeacherApprovedRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuthStore();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (user.role !== UserRole.TEACHER) {
+    return <Result status="403" title="无权访问" subTitle="只有教师可以创建或编辑课程" />;
+  }
+  if (user.teacherStatus !== TeacherStatus.APPROVED) {
+    return (
+      <Result
+        status="403"
+        title="教师资质未审核通过"
+        subTitle={
+          user.teacherStatus === TeacherStatus.PENDING
+            ? '资质正在审核中，审核通过后才能创建或发布课程'
+            : '资质审核未通过，无法创建或发布课程，请联系管理员'
+        }
+        extra={<Button type="primary" onClick={() => (window.location.href = '/')}>返回首页</Button>}
+      />
+    );
+  }
+  return <>{children}</>;
 }
 
 function App() {
@@ -74,7 +106,19 @@ function App() {
                 path="/create-course"
                 element={
                   <PrivateRoute>
-                    <CreateCourse />
+                    <TeacherApprovedRoute>
+                      <CreateCourse />
+                    </TeacherApprovedRoute>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/courses/:id/edit"
+                element={
+                  <PrivateRoute>
+                    <TeacherApprovedRoute>
+                      <EditCourse />
+                    </TeacherApprovedRoute>
                   </PrivateRoute>
                 }
               />

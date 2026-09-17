@@ -1,11 +1,12 @@
 import { Row, Col, Card, Typography, Tag, Button, Space, Descriptions, List, Avatar, message, Modal } from 'antd';
-import { PlayCircleOutlined, BookOutlined, EditOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, BookOutlined, EditOutlined, CloudUploadOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { courseApi } from '@/api/course';
-import { Course, CourseType, CourseLesson } from '@/types/course';
+import { Course, CourseType, CourseStatus, CourseLesson } from '@/types/course';
 import { useAuthStore } from '@/store/auth';
 import { UserRole } from '@/types/user';
+import { getErrorReasons } from '@/utils/error';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -73,6 +74,32 @@ export default function CourseDetail() {
     }
   };
 
+  const [publishing, setPublishing] = useState(false);
+
+  const handlePublish = async () => {
+    if (!id) return;
+    setPublishing(true);
+    try {
+      await courseApi.publish(id);
+      message.success('课程已上架');
+      await loadCourse();
+    } catch (error) {
+      const reasons = getErrorReasons(error);
+      Modal.error({
+        title: '上架失败，课程仍为草稿状态',
+        content: (
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {reasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        ),
+      });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   if (loading) {
     return <Card><div style={{ textAlign: 'center', padding: 50 }}>加载中...</div></Card>;
   }
@@ -119,16 +146,28 @@ export default function CourseDetail() {
                 </Space>
                 <div style={{ marginTop: 24 }}>
                   {isTeacher ? (
-                    <Space>
-                      <Button type="primary" icon={<EditOutlined />}>
-                        编辑课程
-                      </Button>
+                    <Space wrap>
+                      {course.status === CourseStatus.DRAFT && (
+                        <Tag color="orange">草稿（未上架）</Tag>
+                      )}
                       <Button
                         type="primary"
-                        onClick={() => navigate('/create-course')}
+                        icon={<EditOutlined />}
+                        onClick={() => navigate(`/courses/${course.id}/edit`)}
                       >
-                        新建课时
+                        编辑课程
                       </Button>
+                      {course.status === CourseStatus.DRAFT && (
+                        <Button
+                          type="primary"
+                          ghost
+                          icon={<CloudUploadOutlined />}
+                          loading={publishing}
+                          onClick={handlePublish}
+                        >
+                          上架课程
+                        </Button>
+                      )}
                     </Space>
                   ) : enrolled ? (
                     <Button type="primary" size="large">

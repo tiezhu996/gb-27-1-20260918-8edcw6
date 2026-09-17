@@ -1,4 +1,4 @@
-import { Layout, Menu, Button, Avatar, Dropdown, Space } from 'antd';
+import { Layout, Menu, Button, Avatar, Dropdown, Space, Tooltip } from 'antd';
 import {
   HomeOutlined,
   BookOutlined,
@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
-import { UserRole } from '@/types/user';
+import { UserRole, TeacherStatus } from '@/types/user';
 
 const { Header, Content } = Layout;
 
@@ -72,11 +72,24 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <Space>
           {isAuthenticated ? (
             <>
-              {user?.role === UserRole.TEACHER && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/create-course')}>
-                  创建课程
-                </Button>
-              )}
+              {user?.role === UserRole.TEACHER &&
+                (user.teacherStatus === TeacherStatus.APPROVED ? (
+                  <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/create-course')}>
+                    创建课程
+                  </Button>
+                ) : (
+                  <Tooltip
+                    title={
+                      user.teacherStatus === TeacherStatus.PENDING
+                        ? '教师资质审核中，通过后才可创建课程'
+                        : '教师资质未通过审核，无法创建课程'
+                    }
+                  >
+                    <Button type="primary" icon={<PlusOutlined />} disabled>
+                      创建课程
+                    </Button>
+                  </Tooltip>
+                ))}
               <Dropdown menu={{ items: userMenuItems }}>
                 <Space style={{ cursor: 'pointer', color: 'white' }}>
                   <Avatar icon={<UserOutlined />} />

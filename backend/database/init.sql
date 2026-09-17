@@ -28,7 +28,12 @@ CREATE TABLE IF NOT EXISTS courses (
   status VARCHAR(20) NOT NULL DEFAULT 'draft',
   teacher_id UUID NOT NULL REFERENCES users(id),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  -- 售卖条件的数据库兜底：付费课价格必须大于 0，免费课价格固定为 0
+  CONSTRAINT chk_course_price CHECK (
+    (type = 'paid' AND price > 0) OR
+    (type = 'free' AND price = 0)
+  )
 );
 
 CREATE TABLE IF NOT EXISTS course_lessons (

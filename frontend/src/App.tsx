@@ -9,6 +9,7 @@ import CourseList from './pages/CourseList';
 import CourseDetail from './pages/CourseDetail';
 import MyCourses from './pages/MyCourses';
 import CreateCourse from './pages/CreateCourse';
+import ApprovedTeacherGuard from './components/ApprovedTeacherGuard';
 import LiveClass from './pages/LiveClass';
 import Assignment from './pages/Assignment';
 import Statistics from './pages/Statistics';
@@ -74,7 +75,19 @@ function App() {
                 path="/create-course"
                 element={
                   <PrivateRoute>
-                    <CreateCourse />
+                    <ApprovedTeacherGuard>
+                      <CreateCourse />
+                    </ApprovedTeacherGuard>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/courses/:id/edit"
+                element={
+                  <PrivateRoute>
+                    <ApprovedTeacherGuard>
+                      <CreateCourse />
+                    </ApprovedTeacherGuard>
                   </PrivateRoute>
                 }
               />

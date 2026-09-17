@@ -2,6 +2,9 @@ import { Controller, Get, Post, Put, Param, Body, UseGuards, Request, Query } fr
 import { CoursesService } from './courses.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CourseType } from '../../common/entities/course.entity';
+import { CreateCourseDto } from './dto/create-course.dto';
+import { UpdateCourseDto } from './dto/update-course.dto';
+import { CreateLessonDto } from './dto/create-lesson.dto';
 
 @Controller('courses')
 export class CoursesController {
@@ -25,7 +28,7 @@ export class CoursesController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Request() req, @Body() courseData: any) {
+  create(@Request() req, @Body() courseData: CreateCourseDto) {
     return this.coursesService.create(req.user.id, courseData);
   }
 
@@ -36,7 +39,7 @@ export class CoursesController {
 
   @UseGuards(JwtAuthGuard)
   @Put(':id')
-  update(@Param('id') id: string, @Body() courseData: any, @Request() req) {
+  update(@Param('id') id: string, @Body() courseData: UpdateCourseDto, @Request() req) {
     return this.coursesService.update(req.user.id, id, courseData);
   }
 
@@ -62,7 +65,7 @@ export class CoursesController {
   @Post(':id/lessons')
   createLesson(
     @Param('id') courseId: string,
-    @Body() lessonData: any,
+    @Body() lessonData: CreateLessonDto,
     @Request() req,
   ) {
     return this.coursesService.createLesson(req.user.id, courseId, lessonData);

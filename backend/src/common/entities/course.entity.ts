@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn, Check } from 'typeorm';
 import { User } from './user.entity';
 import { CourseLesson } from './course-lesson.entity';
 import { CourseEnrollment } from './course-enrollment.entity';
@@ -14,6 +14,8 @@ export enum CourseStatus {
 }
 
 @Entity('courses')
+// 数据库层兜底：免费课价格必须为 0，付费课价格必须大于 0
+@Check(`(type = 'free' AND price = 0) OR (type = 'paid' AND price > 0)`)
 export class Course {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -1,11 +1,11 @@
-import { Row, Col, Card, Typography, Tabs, List, Tag, Button, Avatar, Empty } from 'antd';
-import { PlayCircleOutlined, BookOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Typography, Tabs, List, Tag, Button, Avatar, Empty, Alert, Space } from 'antd';
+import { PlayCircleOutlined, BookOutlined, ClockCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { courseApi } from '@/api/course';
-import { Course, CourseType } from '@/types/course';
+import { Course, CourseType, CourseStatus } from '@/types/course';
 import { useAuthStore } from '@/store/auth';
-import { UserRole } from '@/types/user';
+import { UserRole, TeacherStatus } from '@/types/user';
 
 const { Title } = Typography;
 
@@ -30,6 +30,8 @@ export default function MyCourses() {
   };
 
   const isTeacher = user?.role === UserRole.TEACHER;
+  const isApprovedTeacher = isTeacher && user?.teacherStatus === TeacherStatus.APPROVED;
+  const isPendingTeacher = isTeacher && user?.teacherStatus === TeacherStatus.PENDING;
   const teachingCourses = courses.filter(c => c.teacherId === user?.id);
   const learningCourses = courses.filter(c => c.teacherId !== user?.id);
 
@@ -63,7 +65,16 @@ export default function MyCourses() {
     >
       <Card.Meta
         avatar={<Avatar icon={<BookOutlined />} />}
-        title={course.name}
+        title={
+          <Space size={4}>
+            {course.name}
+            {isTeacher && (
+              <Tag color={course.status === CourseStatus.PUBLISHED ? 'green' : 'default'}>
+                {course.status === CourseStatus.PUBLISHED ? '已上架' : '草稿'}
+              </Tag>
+            )}
+          </Space>
+        }
         description={
           <Tag color={course.type === CourseType.PAID ? 'gold' : 'green'}>
           {course.type === CourseType.PAID ? `¥${course.price}` : '免费'}
@@ -76,6 +87,41 @@ export default function MyCourses() {
   return (
     <div>
       <Title level={2}>我的课程</Title>
+
+      {isApprovedTeacher && (
+        <Alert
+          type="success"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="教师资质已审核通过"
+          action={
+            <Button
+              size="small"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => navigate('/create-course')}
+            >
+              创建课程
+            </Button>
+          }
+        />
+      )}
+      {isPendingTeacher && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="您的教师资质正在审核中，审核通过后才能创建和发布课程。"
+        />
+      )}
+      {isTeacher && !isApprovedTeacher && !isPendingTeacher && (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="教师资质未审核通过，暂不能创建和发布课程。"
+        />
+      )}
       
       <Tabs
         defaultActiveKey={tabs[0].key}

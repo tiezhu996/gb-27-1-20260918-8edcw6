@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
-import { UserRole } from '@/types/user';
+import { UserRole, TeacherStatus } from '@/types/user';
 
 const { Header, Content } = Layout;
 
@@ -72,11 +72,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <Space>
           {isAuthenticated ? (
             <>
-              {user?.role === UserRole.TEACHER && (
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/create-course')}>
-                  创建课程
-                </Button>
-              )}
+              {user?.role === UserRole.TEACHER &&
+                user.teacherStatus === TeacherStatus.APPROVED && (
+                  <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/create-course')}>
+                    创建课程
+                  </Button>
+                )}
               <Dropdown menu={{ items: userMenuItems }}>
                 <Space style={{ cursor: 'pointer', color: 'white' }}>
                   <Avatar icon={<UserOutlined />} />

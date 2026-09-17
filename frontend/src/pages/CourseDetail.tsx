@@ -1,11 +1,11 @@
-import { Row, Col, Card, Typography, Tag, Button, Space, Descriptions, List, Avatar, message, Modal } from 'antd';
-import { PlayCircleOutlined, BookOutlined, EditOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Typography, Tag, Button, Space, Descriptions, List, Avatar, message, Modal, Form, Input, InputNumber } from 'antd';
+import { PlayCircleOutlined, BookOutlined, EditOutlined, CloudUploadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { courseApi } from '@/api/course';
-import { Course, CourseType, CourseLesson } from '@/types/course';
+import { Course, CourseType, CourseStatus, CourseLesson } from '@/types/course';
 import { useAuthStore } from '@/store/auth';
-import { UserRole } from '@/types/user';
+import { getErrorMessages } from '@/utils/error';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -15,6 +15,10 @@ export default function CourseDetail() {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolled, setEnrolled] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [lessonModalOpen, setLessonModalOpen] = useState(false);
+  const [lessonSubmitting, setLessonSubmitting] = useState(false);
+  const [lessonForm] = Form.useForm();
   const { user, isAuthenticated } = useAuthStore();
 
   useEffect(() => {
@@ -45,7 +49,7 @@ export default function CourseDetail() {
       return;
     }
     if (!id) return;
-    
+
     Modal.confirm({
       title: '确认报名',
       content: course?.type === CourseType.PAID
@@ -61,6 +65,51 @@ export default function CourseDetail() {
         }
       },
     });
+  };
+
+  const handlePublish = async () => {
+    if (!id) return;
+    setPublishing(true);
+    try {
+      const updated = await courseApi.publish(id);
+      setCourse(updated);
+      message.success('课程已上架');
+    } catch (error) {
+      const reasons = getErrorMessages(error, '上架失败');
+      Modal.error({
+        title: '课程不满足上架条件，未做任何变更',
+        content: (
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {reasons.map((reason, idx) => (
+              <li key={idx}>{reason}</li>
+            ))}
+          </ul>
+        ),
+      });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const handleCreateLesson = async (values: any) => {
+    if (!id) return;
+    setLessonSubmitting(true);
+    try {
+      await courseApi.createLesson(id, {
+        title: values.title.trim(),
+        description: values.description?.trim(),
+        duration: Number(values.duration) || 0,
+        isLive: false,
+      });
+      message.success('课时已添加');
+      setLessonModalOpen(false);
+      lessonForm.resetFields();
+      await loadCourse();
+    } catch (error) {
+      message.error(getErrorMessages(error, '添加课时失败')[0]);
+    } finally {
+      setLessonSubmitting(false);
+    }
   };
 
   const handlePlayLesson = (lesson: CourseLesson) => {
@@ -82,6 +131,7 @@ export default function CourseDetail() {
   }
 
   const isTeacher = user?.id === course.teacherId;
+  const isDraft = course.status === CourseStatus.DRAFT;
 
   return (
     <div>
@@ -100,7 +150,10 @@ export default function CourseDetail() {
                 />
               </Col>
               <Col span={14}>
-                <Title level={2}>{course.name}</Title>
+                <Title level={2}>
+                  {course.name}
+                  {isDraft && <Tag color="default" style={{ marginLeft: 12, verticalAlign: 'middle' }}>草稿</Tag>}
+                </Title>
                 <Space wrap style={{ marginBottom: 16 }}>
                   <Tag color={course.type === CourseType.PAID ? 'gold' : 'green'}>
                     {course.type === CourseType.PAID ? `¥${course.price}` : '免费'}
@@ -119,17 +172,31 @@ export default function CourseDetail() {
                 </Space>
                 <div style={{ marginTop: 24 }}>
                   {isTeacher ? (
-                    <Space>
-                      <Button type="primary" icon={<EditOutlined />}>
-                        编辑课程
-                      </Button>
+                    <Space wrap>
                       <Button
                         type="primary"
-                        onClick={() => navigate('/create-course')}
+                        icon={<EditOutlined />}
+                        onClick={() => navigate(`/courses/${course.id}/edit`)}
                       >
-                        新建课时
+                        编辑课程
                       </Button>
+                      <Button icon={<PlusOutlined />} onClick={() => setLessonModalOpen(true)}>
+                        添加课时
+                      </Button>
+                      {isDraft && (
+                        <Button
+                          type="primary"
+                          ghost
+                          icon={<CloudUploadOutlined />}
+                          loading={publishing}
+                          onClick={handlePublish}
+                        >
+                          上架课程
+                        </Button>
+                      )}
                     </Space>
+                  ) : isDraft ? (
+                    <Text type="secondary">该课程尚未上架</Text>
                   ) : enrolled ? (
                     <Button type="primary" size="large">
                       已报名
@@ -164,7 +231,7 @@ export default function CourseDetail() {
         <List
           itemLayout="horizontal"
           dataSource={course.lessons || []}
-          locale={{ emptyText: '暂无课时' }}
+          locale={{ emptyText: isTeacher ? '暂无课时，请点击“添加课时”（上架至少需要 1 个课时）' : '暂无课时' }}
           renderItem={(lesson, index) => (
             <List.Item
               actions={
@@ -199,6 +266,28 @@ export default function CourseDetail() {
           )}
         />
       </Card>
+
+      <Modal
+        title="添加课时"
+        open={lessonModalOpen}
+        onCancel={() => setLessonModalOpen(false)}
+        onOk={() => lessonForm.validateFields().then(handleCreateLesson)}
+        confirmLoading={lessonSubmitting}
+        okText="添加"
+        cancelText="取消"
+      >
+        <Form form={lessonForm} layout="vertical" initialValues={{ duration: 0 }}>
+          <Form.Item name="title" label="课时标题" rules={[{ required: true, message: '请输入课时标题' }]}>
+            <Input placeholder="请输入课时标题" />
+          </Form.Item>
+          <Form.Item name="description" label="课时简介">
+            <Input.TextArea rows={3} placeholder="请输入课时简介（可选）" />
+          </Form.Item>
+          <Form.Item name="duration" label="时长（分钟）">
+            <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
